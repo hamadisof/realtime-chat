@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chat en Temps Réel</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #eef2f3;
+            padding: 20px;
+        }
+
+        #messages {
+            background: white;
+            height: 300px;
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+
+        #typing {
+            font-style: italic;
+            color: #555;
+            height: 20px;
+        }
+
+        #inputArea {
+            display: flex;
+        }
+
+        #message {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>💬 Chat en Temps Réel</h2>
+
+    <div id="messages"></div>
+    <div id="typing"></div>
+
+    <div id="inputArea">
+        <input id="message" type="text" placeholder="Votre message..." />
+        <button id="send">Envoyer</button>
+    </div>
+
+    <!-- Import du client socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        // Connexion au serveur
+        const socket = io();
+
+        // On demande le nom d'utilisateur
+        const username = prompt("Entrez votre nom d'utilisateur :") || "Anonyme";
+
+        // On informe le serveur
+        socket.emit('user joined', username);
+
+        // Sélecteurs
+        const messagesDiv = document.getElementById('messages');
+        const typingDiv = document.getElementById('typing');
+        const input = document.getElementById('message');
+        const btn = document.getElementById('send');
+
+        // Envoi d’un message
+        btn.onclick = sendMessage;
+
+        input.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+            socket.emit('typing', username);
+        });
+
+        // Fonction d’envoi
+        function sendMessage() {
+            const msg = input.value.trim();
+            if (msg !== "") {
+                socket.emit("chat message", { user: username, message: msg });
+                input.value = "";
+            }
+        }
+
+        // Réception d’un message utilisateur
+        socket.on("chat message", (data) => {
+            const p = document.createElement("p");
+            p.innerHTML = `<strong>[${data.user}]</strong> : ${data.message}`;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Réception d’un message du serveur
+        socket.on("server message", (msg) => {
+            const p = document.createElement("p");
+            p.style.color = "gray";
+            p.innerHTML = msg;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Indicateur "en train d’écrire"
+        socket.on("typing", (user) => {
+            typingDiv.textContent = `${user} est en train d'écrire...`;
+            setTimeout(() => {
+                typingDiv.textContent = "";
+            }, 1000);
+        });
+    </script>
+
+</body>
+
+</html>
