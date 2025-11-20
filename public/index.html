@@ -7,48 +7,154 @@
 
     <style>
         body {
-            font-family: Arial;
-            background: #eef2f3;
-            padding: 20px;
+            font-family: "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1f29, #2a2d3a);
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: white;
         }
 
+        /* HEADER */
+        header {
+            background: #272a36;
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        #currentUser {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+
+        /* MESSAGES */
         #messages {
-            background: white;
-            height: 300px;
-            border: 1px solid #aaa;
-            border-radius: 5px;
-            padding: 10px;
-            overflow-y: scroll;
-            margin-bottom: 10px;
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        #typing {
-            font-style: italic;
-            color: #555;
-            height: 20px;
+        /* Bulle message */
+        .msg {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 12px;
+            line-height: 1.4;
+            animation: fadeIn 0.25s ease-in-out;
         }
 
+        /* Bulles des autres */
+        .msg.other {
+            background: #3a3f51;
+            align-self: flex-start;
+        }
+
+        /* Bulles de l'utilisateur */
+        .msg.me {
+            background: #5568fe;
+            align-self: flex-end;
+        }
+
+        /* Nom dans les messages */
+        .username {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        /* Message image */
+        .msg img {
+            max-width: 200px;
+            border-radius: 8px;
+        }
+
+        /* ANIMATION */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ZONE DE SAISIE */
         #inputArea {
             display: flex;
+            padding: 15px;
+            gap: 10px;
+            background: #272a36;
+            border-top: 1px solid #444;
         }
 
         #message {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
             font-size: 16px;
+            outline: none;
+            background: #1f212b;
+            color: white;
         }
 
         button {
-            padding: 10px;
-            font-size: 16px;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 25px;
+            background: #5568fe;
+            color: white;
+            font-weight: bold;
             cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #4457dd;
+        }
+
+        /* Typing indicator */
+        #typing {
+            padding-left: 20px;
+            font-style: italic;
+            opacity: 0.7;
+            height: 22px;
+        }
+
+        /* Scrollbar moderne */
+        #messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: #5568fe;
+            border-radius: 10px;
         }
     </style>
 </head>
 
+
 <body>
 
-    <h2>💬 Chat en Temps Réel</h2>
+    <header>
+        <span>💬 Chat en Temps Réel</span>
+        <span id="currentUser"></span>
+    </header>
 
     <div id="messages"></div>
     <div id="typing"></div>
@@ -56,28 +162,39 @@
     <div id="inputArea">
         <input id="message" type="text" placeholder="Votre message..." />
         <button id="send">Envoyer</button>
+
+        <button id="imageBtn">📷</button>
+        <input type="file" id="imageInput" accept="image/*" style="display:none">
     </div>
 
-    <!-- Import du client socket.io -->
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
-        // Connexion au serveur
         const socket = io();
 
-        // On demande le nom d'utilisateur
         const username = prompt("Entrez votre nom d'utilisateur :") || "Anonyme";
-
-        // On informe le serveur
         socket.emit('user joined', username);
 
-        // Sélecteurs
         const messagesDiv = document.getElementById('messages');
         const typingDiv = document.getElementById('typing');
         const input = document.getElementById('message');
         const btn = document.getElementById('send');
+        // afficher le pseudo dans le header
+        document.getElementById("currentUser").textContent = `Connecté en tant que ${username}`;
 
-        // Envoi d’un message
+        // réception de l'historique
+        socket.on("history", (messages) => {
+            messages.forEach(msg => {
+                renderMessage({
+                    username: msg.username,
+                    text: msg.text,
+                    image: msg.image,
+                    createdAt: msg.createdAt
+                });
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
         btn.onclick = sendMessage;
 
         input.addEventListener("keypress", (e) => {
@@ -85,24 +202,60 @@
             socket.emit('typing', username);
         });
 
-        // Fonction d’envoi
         function sendMessage() {
             const msg = input.value.trim();
             if (msg !== "") {
-                socket.emit("chat message", { user: username, message: msg });
+                socket.emit("chat message", { username, text: msg });
                 input.value = "";
             }
         }
 
-        // Réception d’un message utilisateur
-        socket.on("chat message", (data) => {
-            const p = document.createElement("p");
-            p.innerHTML = `<strong>[${data.user}]</strong> : ${data.message}`;
-            messagesDiv.appendChild(p);
+        function formatTime(dateString) {
+            const d = new Date(dateString || Date.now());
+            const h = String(d.getHours()).padStart(2, "0");
+            const m = String(d.getMinutes()).padStart(2, "0");
+            return `${h}:${m}`;
+        }
+
+        function renderMessage(data) {
+            const div = document.createElement("div");
+            div.classList.add("msg");
+
+            if (data.username === username) {
+                div.classList.add("me");
+            } else {
+                div.classList.add("other");
+            }
+
+            const time = formatTime(data.createdAt);
+
+            let content = `
+        <div class="username">${data.username} <span style="font-size:11px; opacity:0.7;">${time}</span></div>
+    `;
+
+            if (data.text) {
+                content += `<div>${data.text}</div>`;
+            }
+            if (data.image) {
+                content += `<img src="${data.image}">`;
+            }
+
+            div.innerHTML = content;
+            messagesDiv.appendChild(div);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // message texte reçu
+        socket.on("chat message", (data) => {
+            renderMessage(data);
         });
 
-        // Réception d’un message du serveur
+        // image reçue
+        socket.on("chat image", (data) => {
+            renderMessage(data);
+        });
+
+
         socket.on("server message", (msg) => {
             const p = document.createElement("p");
             p.style.color = "gray";
@@ -111,15 +264,57 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         });
 
-        // Indicateur "en train d’écrire"
         socket.on("typing", (user) => {
             typingDiv.textContent = `${user} est en train d'écrire...`;
-            setTimeout(() => {
-                typingDiv.textContent = "";
-            }, 1000);
+            setTimeout(() => typingDiv.textContent = "", 1000);
+        });
+
+        // ----- GESTION DES IMAGES -----
+
+        const imageBtn = document.getElementById("imageBtn");
+        const imageInput = document.getElementById("imageInput");
+
+        imageBtn.onclick = () => imageInput.click();
+
+        imageInput.onchange = () => {
+            const file = imageInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = () => {
+                const base64Image = reader.result;
+
+                socket.emit("chat image", {
+                    username,
+                    image: base64Image
+                });
+            };
+
+            reader.readAsDataURL(file);
+        };
+
+        socket.on("chat image", (data) => {
+            const div = document.createElement("div");
+            div.classList.add("msg");
+
+            if (data.username === username) {
+                div.classList.add("me");
+            } else {
+                div.classList.add("other");
+            }
+
+            div.innerHTML = `<div class="username">${data.username}</div><img src="${data.image}">`;
+
+            messagesDiv.appendChild(div);
+
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         });
     </script>
 
 </body>
+
+</html>
+
 
 </html>
