@@ -9,228 +9,256 @@
 
 <body>
 
-    <div class="app">
-        <header>
-            <div class="title">
-                <span class="icon">💬</span>
-                <span class="title-gradient">Chat en Temps Réel</span>
-            </div>
-            <div class="user-pill">
-                <span class="user-dot"></span>
-                <span id="currentUser">Connexion…</span>
-            </div>
-        </header>
+    <!-- PAGE DE CONNEXION-->
+    <div id="loginPage">
+        <div id="loginBox">
+            <h2>Bienvenue 👋</h2>
+            <p>Entrez votre pseudo pour rejoindre le chat</p>
 
-        <div class="chat-layout">
-            <aside class="sidebar">
-                <div>
-                    <div class="sidebar-title">Astuces</div>
-
-                    <div class="tip-line">
-                        <span class="tip-icon">⏎</span>
-                        <span>Appuyez sur Entrée pour envoyer</span>
-                    </div>
-
-                    <div class="tip-line">
-                        <span class="tip-icon">📷</span>
-                        <span>Envoyer une image depuis votre appareil</span>
-                    </div>
-
-                    <div class="tip-line">
-                        <span class="tip-icon">😊</span>
-                        <span>Ajouter un emoji à votre message</span>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="sidebar-title">Raccourcis</div>
-
-                    <div class="pill">
-                        <span>⏎</span> <span>Envoyer</span>
-                    </div>
-                </div>
-            </aside>
-
-
-            <section class="chat-panel">
-                <div id="messages"></div>
-                <div id="typing"></div>
-
-                <div id="inputArea">
-                    <div class="input-wrapper">
-                        <button id="emojiBtn" class="icon-btn" title="Emoji">😊</button>
-                        <button id="imageBtn" class="icon-btn" title="Envoyer une image">📷</button>
-                        <input id="message" type="text" placeholder="Écrivez votre message..." autocomplete="off" />
-                        <input type="file" id="imageInput" accept="image/*" style="display:none">
-                    </div>
-                    <button id="send">
-                        <span>Envoyer</span>
-                        <span class="icon">➤</span>
-                    </button>
-                </div>
-
-                <div id="emojiPicker">
-                    <span>😀</span><span>😁</span><span>😂</span><span>🤣</span><span>😊</span><span>😍</span>
-                    <span>😎</span><span>😢</span><span>😭</span><span>😡</span><span>😱</span><span>🤯</span>
-                    <span>👍</span><span>👏</span><span>🙏</span><span>🔥</span><span>🎉</span><span>⭐</span>
-                    <span>💡</span><span>✅</span><span>❌</span><span>❤️</span><span>💔</span><span>⚽</span>
-                    <span>🐱</span><span>🐶</span><span>🌙</span><span>☀️</span><span>🌈</span>
-                </div>
-            </section>
+            <input id="loginUsername" type="text" placeholder="Ex : Alice" autocomplete="off">
+            <button id="loginBtn">Entrer dans le chat</button>
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
+    <!-- PAGE DE CHAT-->
+    <div id="chatPage" class="hidden">
 
-        const username = prompt("Entrez votre nom d'utilisateur :") || "Anonyme";
-        socket.emit('user joined', username);
-
-        const messagesDiv = document.getElementById('messages');
-        const typingDiv = document.getElementById('typing');
-        const input = document.getElementById('message');
-        const btn = document.getElementById('send');
-        const currentUserSpan = document.getElementById('currentUser');
-
-        const emojiBtn = document.getElementById("emojiBtn");
-        const emojiPicker = document.getElementById("emojiPicker");
-        const imageBtn = document.getElementById("imageBtn");
-        const imageInput = document.getElementById("imageInput");
-
-        currentUserSpan.textContent = `Connecté en tant que ${username}`;
-
-        function formatTime(dateString) {
-            const d = dateString ? new Date(dateString) : new Date();
-            const h = String(d.getHours()).padStart(2, "0");
-            const m = String(d.getMinutes()).padStart(2, "0");
-            return `${h}:${m}`;
-        }
-
-        function renderMessage(data, type = "normal") {
-            const div = document.createElement("div");
-
-            if (type === "system") {
-                div.classList.add("msg", "system");
-                div.textContent = data;
-            } else {
-                div.classList.add("msg");
-                if (data.username === username) {
-                    div.classList.add("me");
-                } else {
-                    div.classList.add("other");
-                }
-
-                const time = formatTime(data.createdAt);
-                let html = `
-                <div class="username">
-                    <span>${data.username}</span>
-                    <span class="timestamp">${time}</span>
+        <div class="app">
+            <header>
+                <div class="title">
+                    <span class="icon">💬</span>
+                    <span class="title-gradient">Chat en Temps Réel</span>
                 </div>
-            `;
 
-                if (data.text) {
-                    html += `<div>${data.text}</div>`;
-                }
-                if (data.image) {
-                    html += `<img src="${data.image}" alt="image">`;
-                }
+                <div class="user-pill">
+                    <span class="user-dot"></span>
+                    <span id="currentUser">Connexion…</span>
+                    <button id="logoutBtn" class="logout-btn">Se déconnecter</button>
+                </div>
+            </header>
 
-                div.innerHTML = html;
+            <div class="chat-layout">
+
+                <!-- barre  -->
+                <aside class="sidebar">
+                    <div>
+                        <div class="sidebar-title">Utilisateurs en ligne</div>
+                        <div id="userList" class="user-list"></div>
+                    </div>
+                </aside>
+
+                <!--ZONE DE CHAT -->
+                <section class="chat-panel">
+
+                    <div id="loading">Chargement des messages...</div>
+                    <div id="messages"></div>
+                    <div id="typing"></div>
+
+                    <!-- Zone d’écriture -->
+                    <div id="inputArea">
+                        <div class="input-wrapper">
+                            <button id="emojiBtn" class="icon-btn">😊</button>
+                            <button id="imageBtn" class="icon-btn">📷</button>
+
+                            <input id="message" type="text" placeholder="Écrivez votre message...">
+                            <input type="file" id="imageInput" accept="image/*" hidden>
+                        </div>
+
+                        <button id="send">
+                            <span>Envoyer</span>
+                            <span class="icon">➤</span>
+                        </button>
+                    </div>
+
+                    <!-- Sélecteur d’emojis -->
+                    <div id="emojiPicker">
+                        <span>😀</span><span>😁</span><span>😂</span><span>🤣</span><span>😃</span>
+                        <span>😄</span><span>😅</span><span>😆</span><span>😉</span><span>😊</span>
+                        <span>😍</span><span>🤩</span><span>😘</span><span>😚</span><span>😜</span>
+                        <span>🤪</span><span>😎</span><span>😏</span><span>😒</span><span>😞</span>
+                        <span>😔</span><span>😟</span><span>😕</span><span>🙁</span><span>☹️</span>
+                        <span>😣</span><span>😖</span><span>😫</span><span>😩</span><span>🥺</span>
+                        <span>😢</span><span>😭</span><span>😤</span><span>😠</span><span>😡</span>
+                        <span>🤬</span><span>🤯</span><span>😳</span><span>🥵</span><span>🥶</span>
+                        <span>😱</span><span>😨</span><span>😰</span><span>😥</span><span>😓</span>
+                        <span>🤗</span><span>🤔</span><span>🤨</span><span>😐</span><span>😑</span>
+                        <span>😶</span><span>🙄</span><span>😬</span><span>🤥</span><span>😴</span>
+                        <span>😪</span><span>😵</span><span>🤐</span><span>🥴</span><span>🤢</span>
+                        <span>🤮</span><span>🤧</span><span>😷</span><span>🤒</span><span>🤕</span>
+                    </div>
+
+                </section>
+            </div>
+        </div>
+
+    </div>
+
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+
+        /* GESTION DU LOGIN */
+
+        const loginPage = document.getElementById("loginPage");
+        const chatPage = document.getElementById("chatPage");
+        const loginBtn = document.getElementById("loginBtn");
+
+        loginBtn.onclick = () => {
+            const username = document.getElementById("loginUsername").value.trim();
+            if (!username) return alert("Pseudo obligatoire");
+
+            localStorage.setItem("username", username);
+
+            loginPage.classList.add("hidden");
+            chatPage.classList.remove("hidden");
+
+            startChat(username);
+        };
+
+
+        /* LANCEMENT DU CHAT */
+        function startChat(username) {
+
+            const socket = io({ auth: { username } });
+
+            document.getElementById("currentUser").textContent =
+                "Connecté en tant que " + username;
+
+            // Récupération des éléments de surface
+            const messagesDiv = document.getElementById("messages");
+            const typingDiv = document.getElementById("typing");
+            const input = document.getElementById("message");
+            const btn = document.getElementById("send");
+            const logoutBtn = document.getElementById("logoutBtn");
+            const userListDiv = document.getElementById("userList");
+            const imageBtn = document.getElementById("imageBtn");
+            const imageInput = document.getElementById("imageInput");
+            const emojiPicker = document.getElementById("emojiPicker");
+            const emojiBtn = document.getElementById("emojiBtn");
+
+            /* Déconnexion */
+            logoutBtn.onclick = function () {
+                localStorage.removeItem("username");
+                socket.disconnect();
+                location.reload();
+            };
+
+
+            /* Format d’heure */
+            function formatTime(d) {
+                const date = new Date(d);
+                return date.getHours().toString().padStart(2, "0") + ":" +
+                    date.getMinutes().toString().padStart(2, "0");
             }
 
-            messagesDiv.appendChild(div);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
 
-        // Envoi message texte
-        function sendMessage() {
-            const msg = input.value.trim();
-            if (msg !== "") {
-                const payload = { username, text: msg };
-                socket.emit("chat message", payload);
+            /* Affichage d’un message */
+            function renderMessage(msg) {
+                const div = document.createElement("div");
+                div.classList.add("msg");
+
+                if (msg.username === username)
+                    div.classList.add("me");
+                else
+                    div.classList.add("other");
+
+                let content = `
+                    <div class="username">
+                        <span>${msg.username}</span>
+                        <span class="timestamp">${formatTime(msg.createdAt)}</span>
+                    </div>
+                `;
+
+                if (msg.text) content += `<div>${msg.text}</div>`;
+                if (msg.image) content += `<img src="${msg.image}" />`;
+
+                div.innerHTML = content;
+                messagesDiv.appendChild(div);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+
+            /* Envoi texte */
+            btn.onclick = sendMessage;
+            input.onkeypress = (e) => {
+                if (e.key === "Enter") sendMessage();
+                socket.emit("typing");
+            };
+
+            function sendMessage() {
+                const text = input.value.trim();
+                if (!text) return;
+                socket.emit("chat message", { text });
                 input.value = "";
             }
+
+
+            /* Historique */
+            socket.on("history", (msgs) => {
+                document.getElementById("loading").style.display = "none";
+                msgs.forEach(renderMessage);
+            });
+
+            socket.on("chat message", renderMessage);
+            socket.on("chat image", renderMessage);
+
+
+            /* Messages système */
+            socket.on("server message", (msg) => {
+                const div = document.createElement("div");
+                div.classList.add("msg", "system");
+                div.textContent = msg;
+                messagesDiv.appendChild(div);
+            });
+
+
+            /* Liste des utilisateurs */
+            socket.on("user list", (list) => {
+                userListDiv.innerHTML = list
+                    .map(u => `<div class="user-line"><span class="user-dot"></span> ${u}</div>`)
+                    .join("");
+            });
+
+
+            /* Indication d’écriture */
+            socket.on("typing", (u) => {
+                typingDiv.textContent = u + " écrit...";
+                setTimeout(() => typingDiv.textContent = "", 800);
+            });
+
+
+            /* Gestion des images */
+            imageBtn.onclick = () => imageInput.click();
+
+            imageInput.onchange = () => {
+                const file = imageInput.files[0];
+                const reader = new FileReader();
+
+                reader.onload = () => {
+                    socket.emit("chat image", { image: reader.result });
+                };
+
+                reader.readAsDataURL(file);
+            };
+
+
+            /*  GESTION DES EMOJIS */
+            emojiBtn.onclick = () => {
+                emojiPicker.style.display =
+                    emojiPicker.style.display === "flex" ? "none" : "flex";
+            };
+
+            emojiPicker.addEventListener("click", (e) => {
+                if (e.target.tagName === "SPAN") {
+                    input.value += e.target.textContent;
+                    input.focus();
+                    emojiPicker.style.display = "none";
+                }
+            });
+
         }
 
-        btn.onclick = sendMessage;
-
-        input.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                sendMessage();
-            }
-            socket.emit('typing', username);
-        });
-
-        // Historique
-        socket.on("history", (messages) => {
-            messages.forEach(msg => {
-                renderMessage(msg);
-            });
-        });
-
-        // Message texte reçu
-        socket.on("chat message", (data) => {
-            renderMessage(data);
-        });
-
-        // Message système
-        socket.on("server message", (msg) => {
-            renderMessage(msg, "system");
-        });
-
-        // Indicateur d’écriture
-        socket.on("typing", (user) => {
-            if (!user) return;
-            typingDiv.textContent = `${user} est en train d'écrire...`;
-            setTimeout(() => {
-                typingDiv.textContent = "";
-            }, 1000);
-        });
-
-        // Gestion des images
-        imageBtn.onclick = () => imageInput.click();
-
-        imageInput.onchange = () => {
-            const file = imageInput.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64Image = reader.result;
-                socket.emit("chat image", {
-                    username,
-                    image: base64Image
-                });
-            };
-            reader.readAsDataURL(file);
-        };
-
-        socket.on("chat image", (data) => {
-            renderMessage(data);
-        });
-
-        // Emoji picker
-        emojiBtn.onclick = () => {
-            emojiPicker.style.display = emojiPicker.style.display === "flex" ? "none" : "flex";
-            emojiPicker.style.flexWrap = "wrap";
-        };
-
-        emojiPicker.addEventListener("click", (e) => {
-            if (e.target.tagName === "SPAN") {
-                input.value += e.target.textContent;
-                input.focus();
-                emojiPicker.style.display = "none";
-            }
-        });
-
-        // Fermer l'emoji picker si on clique en dehors
-        document.addEventListener("click", (e) => {
-            if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
-                emojiPicker.style.display = "none";
-            }
-        });
     </script>
 
 </body>

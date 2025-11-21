@@ -1,6 +1,6 @@
 btnSend.onclick = () => {
     const text = inputMessage.value;
-    const username = myUsername; // récupéré au login
+    const username = myUsername;
 
     socket.emit("user joined", username);
 
