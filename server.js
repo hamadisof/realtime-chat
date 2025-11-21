@@ -1,81 +1,73 @@
-// ===============================
-//   Serveur Node + Express
-// ===============================
 require("dotenv").config();
 const mongoose = require("mongoose");
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const path = require("path");
 
 // Connexion MongoDB
 mongoose.connect(
-    `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}/chat-realtime?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}/${process.env.DB_NAME}?retryWrites=true&w=majority`
 ).then(() => {
-    console.log(" Connecté à MongoDB");
+    console.log("🟢 Connecté à MongoDB");
 }).catch((err) => {
-    console.log(" ERREUR MongoDB", err);
+    console.log("❌ ERREUR MongoDB", err);
 });
 
-// Modèles Mongoose
+// Modèles
 const User = require("./models/User");
 const Message = require("./models/Message");
 
 // Port dynamique
 const PORT = process.env.PORT || 3000;
 
-// Servir les fichiers du dossier public
-app.use(express.static('public'));
+// Fichiers statiques
+app.use(express.static(path.join(__dirname, "public")));
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + "/public/index.html");
+// Page HTML principale
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Liste des utilisateurs connectés
+// Utilisateurs connectés
 let users = {};
 
-// ===============================
-//   Gestion Socket.io
-// ===============================
+// SOCKET.IO
 io.on('connection', async (socket) => {
 
     console.log("Nouvel utilisateur :", socket.id);
 
-    // ➤ ENVOYER L'HISTORIQUE AU NOUVEL UTILISATEUR
+    // Historique
     const messages = await Message.find().sort({ createdAt: 1 });
     socket.emit("history", messages);
 
-    // Réception du pseudo
+    // Nouveau user
     socket.on("user joined", async (username) => {
         users[socket.id] = username;
         await User.create({ username });
         io.emit("server message", `🟢 ${username} a rejoint le chat.`);
     });
 
-    // Message texte reçu
+    // Nouveau message
     socket.on("chat message", async (data) => {
-        console.log("📥 MESSAGE REÇU PAR LE SERVEUR :", data);
-
         await Message.create({
             username: data.username,
             text: data.text
         });
-
         io.emit("chat message", data);
     });
 
-    // Réception d'une image
+    // Nouvelle image
     socket.on("chat image", async (data) => {
-        console.log("📥 IMAGE REÇUE PAR LE SERVEUR :", data);
         await Message.create({
             username: data.username,
             image: data.image
         });
-
         io.emit("chat image", data);
     });
 
-    // Indicateur d’écriture
+    // Typing
     socket.on("typing", (username) => {
         socket.broadcast.emit("typing", username);
     });
@@ -90,9 +82,7 @@ io.on('connection', async (socket) => {
     });
 });
 
-// ===============================
-//   Démarrage du serveur
-// ===============================
+// Démarrage serveur
 http.listen(PORT, () => {
-    console.log("Serveur démarré sur http://localhost:" + PORT);
+    console.log("Serveur démarré sur :" + PORT);
 });
