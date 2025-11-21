@@ -1,10 +1,12 @@
-require("dotenv").config();
 const mongoose = require("mongoose");
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require("path");
+if (process.env.NODE_ENV !== "production") {
+    require("dotenv").config();
+}
 
 // Connexion MongoDB
 mongoose.connect(
