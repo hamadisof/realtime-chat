@@ -8,14 +8,18 @@ if (process.env.NODE_ENV !== "production") {
     require("dotenv").config();
 }
 
-// Connexion MongoDB
 mongoose.connect(
-    `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}/${process.env.DB_NAME}?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}/${process.env.DB_NAME}?retryWrites=true&w=majority`,
+    {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }
 ).then(() => {
     console.log("🟢 Connecté à MongoDB");
 }).catch((err) => {
     console.log("❌ ERREUR MongoDB", err);
 });
+
 
 // Modèles
 const User = require("./models/User");
